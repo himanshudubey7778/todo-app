@@ -1,50 +1,70 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
+
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api/tasks";
 
 function App() {
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState("");
   const [error, setError] = useState("");
 
- const API_URL = "http://localhost:5000/api/tasks";
-
   useEffect(() => {
-    let isActive = true;
-
     const loadTasks = async () => {
       try {
         const res = await axios.get(API_URL);
-        if (isActive) {
-          setTasks(res.data);
-          setError("");
-        }
+        setTasks(res.data);
+        setError("");
       } catch (err) {
         console.error("Error fetching tasks:", err);
-        if (isActive) {
-          setError("Could not load tasks. Please check the backend server.");
-        }
+        setError("Could not load tasks. Please check the backend server.");
       }
     };
 
     loadTasks();
-    return () => {
-      isActive = false;
-    };
-  }, [API_URL]);
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const addTask = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
-
+    if (!title.trim()) {
+      setError("Task title cannot be empty");
+      return;
+    }
     try {
-      setError("");
-      const res = await axios.post(API_URL, { title });
-      setTasks([res.data, ...tasks]);
+      const res = await axios.post(API_URL, { title: title.trim() });
+      setTasks((currentTasks) => [res.data, ...currentTasks]);
       setTitle("");
+      setError("");
     } catch (err) {
       console.error("Error adding task:", err);
-      setError("Something went wrong while adding the task.");
+      setError("Something went wrong while adding the task");
+    }
+  };
+
+  const deleteTask = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/${id}`);
+      setTasks((currentTasks) => currentTasks.filter((task) => task._id !== id));
+      setError("");
+    } catch (err) {
+      console.error("Error deleting task:", err);
+      setError("Something went wrong while deleting the task");
+    }
+  };
+
+  const toggleComplete = async (id, completed) => {
+    try {
+      const res = await axios.patch(`${API_URL}/${id}`, {
+        completed: !completed,
+      });
+      setTasks((currentTasks) =>
+        currentTasks.map((task) => (task._id === id ? res.data : task)),
+      );
+      setError("");
+    } catch (err) {
+      console.error("Error updating task:", err);
+      setError("Something went wrong while updating the task");
     }
   };
 
@@ -61,15 +81,15 @@ function App() {
           </span>
         </header>
 
-        {error && <p className="error-message">{error}</p>}
+        {error && <p className="error-message" role="alert">{error}</p>}
 
-        <form className="task-form" onSubmit={handleSubmit}>
+        <form onSubmit={addTask} className="task-form">
           <input
             type="text"
-            placeholder="Add a new task..."
-            aria-label="New task title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            placeholder="Add a new task..."
+            aria-label="New task title"
           />
           <button type="submit">Add Task</button>
         </form>
@@ -82,15 +102,32 @@ function App() {
               </li>
             ) : (
               tasks.map((task) => (
-                <li className="task-item" key={task._id || task.id}>
+                <li
+                  key={task._id}
+                  className={`task-item${task.completed ? " completed" : ""}`}
+                >
                   <span className="task-dot" aria-hidden="true" />
                   <span className="task-title">{task.title}</span>
-                  <time
-                    className="task-time"
-                    dateTime={task.createdAt}
-                  >
+                  <time className="task-time" dateTime={task.createdAt}>
                     {new Date(task.createdAt).toLocaleTimeString()}
                   </time>
+                  <div className="task-actions">
+                    <button
+                      type="button"
+                      className="complete-btn"
+                      aria-pressed={task.completed}
+                      onClick={() => toggleComplete(task._id, task.completed)}
+                    >
+                      {task.completed ? "Undo" : "Complete"}
+                    </button>
+                    <button
+                      type="button"
+                      className="delete-btn"
+                      onClick={() => deleteTask(task._id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ))
             )}
