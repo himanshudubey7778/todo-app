@@ -1,76 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "./App.css";
 
 function App() {
   const [tasks, setTasks] = useState([]);
-  const [title, setTitle] = useState('');
-  const [error, setError] = useState('');
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState("");
 
-  // Backend API Base URL
-  const API_URL = 'http://localhost:5000/api/tasks';
-
-  // Fetch Tasks from Backend
-  const fetchTasks = async () => {
-    try {
-      setError('');
-      const res = await axios.get(API_URL);
-      setTasks(res.data);
-    } catch (err) {
-      console.error('Error fetching tasks:', err);
-      setError('Could not load tasks. Please check the backend server.');
-    }
-  };
+ const API_URL = "http://localhost:5000/api/tasks";
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    let isActive = true;
 
-  // Add Task Function
+    const loadTasks = async () => {
+      try {
+        const res = await axios.get(API_URL);
+        if (isActive) {
+          setTasks(res.data);
+          setError("");
+        }
+      } catch (err) {
+        console.error("Error fetching tasks:", err);
+        if (isActive) {
+          setError("Could not load tasks. Please check the backend server.");
+        }
+      }
+    };
+
+    loadTasks();
+    return () => {
+      isActive = false;
+    };
+  }, [API_URL]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     try {
-      setError('');
+      setError("");
       const res = await axios.post(API_URL, { title });
-      setTasks([res.data, ...tasks]); // Add new task instantly
-      setTitle(''); // Clear input box
+      setTasks([res.data, ...tasks]);
+      setTitle("");
     } catch (err) {
-      console.error('Error adding task:', err);
-      setError('Something went wrong while adding the task.');
+      console.error("Error adding task:", err);
+      setError("Something went wrong while adding the task.");
     }
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '40px auto', fontFamily: 'sans-serif', padding: '20px', background: '#111827', color: '#fff', borderRadius: '12px' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>My To-Do List</h2>
-      
-      {error && <p style={{ color: '#ef4444', textAlign: 'center', background: '#fee2e2', padding: '10px', borderRadius: '6px' }}>{error}</p>}
+    <div className="app-shell">
+      <main className="task-card">
+        <header className="task-header">
+          <div>
+            <p className="eyebrow">Stay organized</p>
+            <h1>My To-Do List</h1>
+          </div>
+          <span className="task-count">
+            {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+          </span>
+        </header>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <input 
-          type="text" 
-          placeholder="Add a new task..." 
-          value={title} 
-          onChange={(e) => setTitle(e.target.value)} 
-          style={{ flex: 1, padding: '12px', fontSize: '16px', borderRadius: '8px', border: '1px solid #374151', background: '#1f2937', color: '#fff' }}
-        />
-        <button type="submit" style={{ padding: '12px 20px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Add Task</button>
-      </form>
+        {error && <p className="error-message">{error}</p>}
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {tasks.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#9ca3af' }}>No tasks yet. Add your first one above.</p>
-        ) : (
-          tasks.map((task) => (
-            <li key={task._id || task.id} style={{ padding: '12px 16px', background: '#1f2937', marginBottom: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #374151' }}>
-              <span>{task.title}</span>
-              <span style={{ fontSize: '12px', color: '#9ca3af' }}>{new Date(task.createdAt).toLocaleTimeString()}</span>
-            </li>
-          ))
-        )}
-      </ul>
+        <form className="task-form" onSubmit={handleSubmit}>
+          <input
+            type="text"
+            placeholder="Add a new task..."
+            aria-label="New task title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <button type="submit">Add Task</button>
+        </form>
+
+        <section className="task-list-section" aria-label="Tasks">
+          <ul className="task-list">
+            {tasks.length === 0 ? (
+              <li className="status-text">
+                No tasks yet. Add your first one above.
+              </li>
+            ) : (
+              tasks.map((task) => (
+                <li className="task-item" key={task._id || task.id}>
+                  <span className="task-dot" aria-hidden="true" />
+                  <span className="task-title">{task.title}</span>
+                  <time
+                    className="task-time"
+                    dateTime={task.createdAt}
+                  >
+                    {new Date(task.createdAt).toLocaleTimeString()}
+                  </time>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      </main>
     </div>
   );
 }
